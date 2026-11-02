@@ -1,7 +1,7 @@
 """Stress estimate and cost trimmer for Poly Bridge 3 slots.
 Only ever deletes pieces or swaps steel to wood on existing joints, so it can't
 create a joint in an illegal spot. Input slots are never modified."""
-import math, os, copy, re, struct
+import math, os, copy, re, struct, glob, shutil, time
 import pbslot, truss
 
 ROAD, WOOD, STEEL = 1, 3, 4
@@ -9,7 +9,8 @@ PRICE = {1: 300, 2: 400, 3: 180, 4: 450, 5: 750, 6: 220, 7: 220}
 PCT0 = {1: 1.69, 2: 1.5, 3: 1.8, 4: 0.905, 5: 0.905, 6: 1.0, 7: 1.0}
 NAMES = {1: "Road", 2: "Reinforced road", 3: "Wood", 4: "Steel", 5: "Hydraulic", 6: "Rope", 7: "Cable"}
 WOOD_MAX = 2.02
-SAVE_ROOT = os.path.expandvars(r"%USERPROFILE%\AppData\LocalLow\Dry Cactus\Poly Bridge 3\Profiles\Default\SaveSlots")
+SAVE_ROOT = os.environ.get("PB_SAVES") or os.path.expandvars(r"%USERPROFILE%\AppData\LocalLow\Dry Cactus\Poly Bridge 3\Profiles\Default\SaveSlots")
+BACKUP_ROOT = os.environ.get("PB_BACKUPS") or os.path.expandvars(r"%USERPROFILE%\Documents\Bridge Trimmer Backups")
 
 def load(path):
     br = pbslot.parse(path)
@@ -115,11 +116,24 @@ def saved_cost(path):
 def free_path(b, name):
     return os.path.join(os.path.dirname(b["path"]), name + ".slot")
 
+def backup(path):
+    """Copies every save in the level's folder. Any failure stops the write."""
+    src = os.path.dirname(path)
+    dst = os.path.join(BACKUP_ROOT, os.path.basename(src), time.strftime("%Y%m%d-%H%M%S"))
+    n = 1
+    while os.path.exists(dst + (f"-{n}" if n > 1 else "")): n += 1
+    dst += f"-{n}" if n > 1 else ""
+    os.makedirs(dst)
+    for f in glob.glob(glob.escape(src) + "/*"):
+        if os.path.isfile(f): shutil.copy2(f, dst)
+    return dst
+
 def save_new(b, edges, name):
     """Writes a brand-new slot next to the original. Refuses to replace anything."""
     if not re.fullmatch(r"[A-Za-z0-9 _()-]{1,40}", name): raise ValueError("Use letters, numbers and spaces in the name.")
     out = free_path(b, name)
     if os.path.exists(out): raise FileExistsError(f'"{name}" already exists. Pick another name.')
+    backup(b["path"])
     used = {n for e in edges for n in (e["a"], e["b"])}
     nb = copy.deepcopy(b["br"])
     nb["joints"] = [j for j in nb["joints"] if j["id"] in used]

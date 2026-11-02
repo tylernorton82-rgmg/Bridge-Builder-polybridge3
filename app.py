@@ -1,6 +1,6 @@
-"""Bridge Trimmer: see the stress in a Poly Bridge 3 save and write a cheaper copy."""
-import os, sys, glob, threading, tkinter as tk
-from tkinter import ttk, filedialog, messagebox
+"""Bridge Trimmer: see the estimated stress and cost in a Poly Bridge 3 save."""
+import os, sys, glob, tkinter as tk
+from tkinter import ttk, filedialog
 from PIL import Image, ImageTk
 import trimmer
 
@@ -16,7 +16,7 @@ def heat(p):
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("Bridge Trimmer for Poly Bridge 3"); self.geometry("1280x860"); self.minsize(1000, 790); self.configure(bg=BG)
+        self.title("Bridge Trimmer for Poly Bridge 3"); self.geometry("1280x900"); self.minsize(1000, 840); self.configure(bg=BG)
         self.b = None; self.edges = None; self.est = None; self.u = None; self.running = False; self.shot = None; self.shot_img = None
         s = ttk.Style(self); s.theme_use("clam")
         s.configure("TCombobox", background=LINE, arrowcolor=TEXT, bordercolor=LINE)
@@ -26,7 +26,7 @@ class App(tk.Tk):
         side = tk.Frame(self, bg=PANEL, width=310); side.pack(side="left", fill="y"); side.pack_propagate(False)
         def lab(t, f=10, c=DIM, p=(12, 3)):
             tk.Label(side, text=t, bg=PANEL, fg=c, font=(FONT, f), anchor="w", justify="left", wraplength=270).pack(fill="x", padx=20, pady=p)
-        lab("Bridge Trimmer", 19, TEXT, (20, 0)); lab("Cheaper bridges from your own saves", 10, ACC, (0, 8))
+        lab("Bridge Trimmer", 19, TEXT, (20, 0)); lab("See the estimated stress in your saves", 10, ACC, (0, 8))
         lab("Level"); self.level = ttk.Combobox(side, state="readonly"); self.level.pack(fill="x", padx=20)
         lab("Save"); self.slot = ttk.Combobox(side, state="readonly"); self.slot.pack(fill="x", padx=20)
         row = tk.Frame(side, bg=PANEL); row.pack(fill="x", padx=20, pady=(9, 0))
@@ -34,12 +34,7 @@ class App(tk.Tk):
             tk.Button(row, text=t, command=f, bg=LINE, fg=TEXT, relief="flat", font=(FONT, 10), cursor="hand2", pady=5, bd=0).pack(side="left", fill="x", expand=True, padx=(0, 6) if i == 0 else 0)
         lab("Stress the game showed (%), optional")
         self.obs = self.entry(side, "")
-        lab("Keep stress under (%)"); self.target = self.entry(side, "90")
-        self.go = self.btn(side, "Trim this bridge", self.start, True)
-        lab("New save name"); self.name = self.entry(side, "Trimmed")
-        self.sv = self.btn(side, "Save as new slot", self.save); self.sv.configure(state="disabled")
-        self.ab = self.btn(side, "Build a new bridge", self.build)
-        lab("New level? In the game, place one road piece and save. Pick that save here, click Build, then save it as a new slot.", 9, DIM, (6, 0))
+        lab("Stress and cost are estimates, and the stress model has been wrong in real tests. Only the game decides.", 9, ACC, (6, 0))
         self.status = tk.Label(side, text="", bg=PANEL, fg=DIM, font=(FONT, 9), wraplength=270, justify="left", anchor="nw"); self.status.pack(fill="both", expand=True, padx=20, pady=10)
         main = tk.Frame(self, bg=BG); main.pack(side="left", fill="both", expand=True)
         self.head = tk.Label(main, text="Pick a level to begin", bg=BG, fg=TEXT, font=(FONT, 15, "bold"), anchor="w"); self.head.pack(fill="x", padx=20, pady=(18, 0))
@@ -86,7 +81,7 @@ class App(tk.Tk):
         try: self.b = trimmer.load(path)
         except Exception as x:
             self.b = None; self.head.configure(text="Couldn't read that save"); self.sub.configure(text=str(x)[:90]); self.cv.delete("all"); return
-        self.edges = None; self.est = None; self.sv.configure(state="disabled")
+        self.edges = None; self.est = None
         lvl = self.b["level"]; self.head.configure(text=(f"Level {lvl}  ·  " if lvl else "") + os.path.basename(path)[:-5])
         self.u = trimmer.stress(self.b)
         self.refresh(); self.status.configure(text="\n".join(trimmer.warnings(self.b)), fg=ACC)
@@ -98,9 +93,9 @@ class App(tk.Tk):
 
     def refresh(self):
         if self.b is None: return
-        b = self.b; t = f"Pieces ${trimmer.cost(b):,.0f}   ·   {len(b['br']['edges'])} pieces"
+        b = self.b; t = f"Est. pieces ${trimmer.cost(b):,.0f}   ·   {len(b['br']['edges'])} pieces"
         if self.u:
-            k, cal = self.scale(); t += f"   ·   Stress ~{max(self.u) * k:.0f}%" + ("" if cal else " (uncalibrated)")
+            k, cal = self.scale(); t += f"   ·   Est. stress ~{max(self.u) * k:.0f}%" + ("" if cal else " (uncalibrated)")
         else: t += "   ·   Unstable in the solver"
         if self.edges is not None: t += f"      →   ${trimmer.cost(b, self.edges):,.0f}, ~{self.est:.0f}%"
         self.sub.configure(text=t); self.draw()
@@ -128,49 +123,6 @@ class App(tk.Tk):
                 x, y = T(p); c.create_oval(x - 3, y - 3, x + 3, y + 3, fill=TEXT, outline="")
         for p in b["A"].values():
             x, y = T(p); c.create_rectangle(x - 6, y - 6, x + 6, y + 6, fill="#d23a4e", outline="")
-
-    def start(self):
-        if self.running or self.b is None: return
-        try:
-            target = float(self.target.get()); obs = float(self.obs.get()) if self.obs.get().strip() else None
-        except ValueError:
-            messagebox.showerror("Bridge Trimmer", "Stress values must be numbers."); return
-        self.running = True; self.go.configure(state="disabled", text="Trimming...")
-        box = []
-        def work():
-            try: box.append(trimmer.trim(self.b, target, obs))
-            except Exception as x: box.append(x)
-        threading.Thread(target=work, daemon=True).start()
-        def poll():
-            if box: self.done(box[0])
-            else: self.after(100, poll)
-        poll()
-
-    def done(self, r):
-        self.running = False; self.go.configure(state="normal", text="Trim this bridge")
-        if isinstance(r, Exception):
-            self.status.configure(text=str(r), fg=ACC); return
-        self.edges, self.est, log = r
-        saved = trimmer.cost(self.b) - trimmer.cost(self.b, self.edges)
-        msg = f"{len(log)} changes save ${saved:,.0f}." if log else "Nothing could be trimmed under that stress limit."
-        if not self.obs.get().strip(): msg += "\nEstimate is uncalibrated. Enter the game's stress % for a better one."
-        self.status.configure(text=msg + "\nAlways test the result in the game.", fg=TEXT)
-        self.sv.configure(state="normal" if log else "disabled"); self.refresh()
-
-    def build(self):
-        if self.b is None: return
-        try: nb, est = trimmer.auto_build(self.b)
-        except Exception as x:
-            self.status.configure(text=str(x), fg=ACC); return
-        self.b = nb; self.u = trimmer.stress(nb); self.edges = list(nb["br"]["edges"]); self.est = est
-        self.sv.configure(state="normal"); self.refresh()
-        self.status.configure(text="Built from the outermost anchors. Stress is a rough estimate, and the app can't see terrain or no-build zones, so check it in the game.", fg=TEXT)
-
-    def save(self):
-        try: out = trimmer.save_new(self.b, self.edges, self.name.get().strip())
-        except Exception as x:
-            messagebox.showerror("Bridge Trimmer", str(x)); return
-        self.status.configure(text=f"Saved as a new slot:\n{os.path.basename(out)}\nYour original wasn't changed. Open it from the level's saves.", fg=TEXT)
 
 if __name__ == "__main__":
     App().mainloop()

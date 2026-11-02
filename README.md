@@ -1,8 +1,16 @@
 # Bridge Trimmer for Poly Bridge 3
 
-Free Windows app that reads your Poly Bridge 3 saves, colours every piece by estimated stress, and writes a cheaper copy of your bridge as a new save slot.
+Free Windows viewer for Poly Bridge 3 saves that colours every piece by estimated stress. Pair the project with Claude Code to make cheaper bridges one tested change at a time.
 
 Fan-made. Not affiliated with Dry Cactus.
+
+**Read this first**
+
+- Edited saves can trigger the game's cheat or illegal-bridge flags. Use this at your own risk.
+- Bridges made or changed with these tools aren't clean leaderboard scores. Don't present them as your own unassisted results.
+- All cost and stress numbers are estimates. The stress model has been wrong in real tests, so only the game decides whether a bridge holds.
+- There's no in-game automation. You run and test every bridge yourself.
+- Every write first backs up that level's saves to `Documents\Bridge Trimmer Backups`.
 
 ## Install
 
@@ -12,31 +20,22 @@ Fan-made. Not affiliated with Dry Cactus.
 
 ## Use
 
-1. Solve a level in the game so it has a passing bridge saved.
+1. Solve a level in the game so it has a saved bridge.
 2. Pick the level and save in the app, or use **Open save**.
-3. Type the max stress the game showed. This calibrates the estimate.
-4. Click **Trim this bridge**.
-5. Name it and click **Save as new slot**, then load that slot in the game and test it.
+3. Optional: type the max stress the game showed to scale the colours.
 
-## New level
+The app only reads saves. It doesn't change them.
 
-1. In the game, place one road piece and save, so the level has a save file.
-2. Pick that save in the app and click **Build a new bridge**.
-3. Click **Save as new slot**, load it in the game and test it. Then run a trim on it once it passes.
+## What it doesn't do
 
-The builder replaces your one piece. It runs a straight road between the outermost anchors with a truss above it. It can't see terrain or no-build zones, and it won't suit levels that need boats, ramps or islands.
-
-## What it does and doesn't do
-
-- It never changes or overwrites an existing save.
-- It only removes pieces or swaps steel for wood. It never adds joints, so it can't put one in an illegal spot.
-- Road, hydraulics, rope, cable and the most loaded steel pieces are left alone.
-- Stress numbers are estimates from a simple truss model. Moving parts aren't simulated, so the game has the final say.
-- A screenshot can be shown next to the bridge for reference. The app doesn't read it automatically.
+- It doesn't trim or build bridges by itself. Early automatic versions failed in the game, so they were removed from the app.
+- The EXE doesn't need Claude. New slots come from the Claude Code route below.
+- Stress is a simple estimate. Moving parts aren't simulated.
+- A screenshot can be shown next to the bridge for reference. The app doesn't read it.
 
 ## Use it with Claude Code (optional)
 
-The app works without this. Claude Code lets you ask Claude to design bridges, read your saves or change the app. It needs a paid Claude account, and it uses the project's source code rather than the EXE.
+The viewer works without this. Claude Code lets you ask Claude to design bridges, read your saves or change the app. It needs a paid Claude account, and it uses the project's source code rather than the EXE.
 
 1. Install [Git](https://git-scm.com/downloads).
 2. Open PowerShell and install Claude Code:
@@ -59,6 +58,7 @@ The app works without this. Claude Code lets you ask Claude to design bridges, r
    ```
 
 5. Ask for what you want, for example: `Read my saves for level 181 and make the bridge cheaper as a new slot.`
+6. Test each new slot in the game and tell Claude pass or fail, the max stress and where it broke. Claude logs it and makes the next try.
 
 Claude reads `CLAUDE.md` in this folder, so it already knows the project and its rules, such as never overwriting your saves. Check what it plans to do before you approve it, and test every bridge in the game.
 
